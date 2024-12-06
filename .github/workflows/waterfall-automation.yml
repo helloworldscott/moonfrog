@@ -1,0 +1,59 @@
+name: Daily Waterfall Automation
+
+on:
+  workflow_dispatch:  # Manual trigger
+  schedule:
+    - cron: '0 13 * * 1-5' # Runs at 8:00 AM EST Monday-Friday!
+
+jobs:
+  run-scripts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Decode and save Google credentials
+        run: |
+          echo "${{ secrets.GOOGLE_SHEET_CREDENTIALS }}" | base64 -d > WaterfallBot/google-credentials.json
+
+      - name: Set environment variables
+        run: |
+          echo "GOOGLE_SHEET_BLANK_WATERFALL_ID=${{ secrets.GOOGLE_SHEET_BLANK_WATERFALL_ID }}" >> $GITHUB_ENV
+          echo "GOOGLE_SHEET_ID=${{ secrets.GOOGLE_SHEET_ID }}" >> $GITHUB_ENV
+          echo "GOOGLE_SHEET_FILLRATE_TAB=${{ secrets.GOOGLE_SHEET_FILLRATE_TAB }}" >> $GITHUB_ENV
+          echo "GOOGLE_SHEET_WATERFALL_TAB=${{ secrets.GOOGLE_SHEET_WATERFALL_TAB }}" >> $GITHUB_ENV
+          echo "IRONSOURCE_SECRET_KEY=${{ secrets.IRONSOURCE_SECRET_KEY }}" >> $GITHUB_ENV
+          echo "IRONSOURCE_REFRESH_TOKEN=${{ secrets.IRONSOURCE_REFRESH_TOKEN }}" >> $GITHUB_ENV
+          echo "IRONSOURCE_APP_KEY_ANDROID=${{ secrets.IRONSOURCE_APP_KEY_ANDROID }}" >> $GITHUB_ENV
+          echo "IRONSOURCE_APP_KEY_IOS=${{ secrets.IRONSOURCE_APP_KEY_IOS }}" >> $GITHUB_ENV
+          echo "SLACK_API_TOKEN=${{ secrets.SLACK_API_TOKEN }}" >> $GITHUB_ENV
+          echo "SLACK_CHANNEL_ID=${{ secrets.SLACK_CHANNEL_ID }}" >> $GITHUB_ENV
+          echo "SHARE_EMAILS=${{ secrets.SHARE_EMAILS }}" >> $GITHUB_ENV
+          echo "GOOGLE_SHEET_DAILY_ID=${{ secrets.GOOGLE_SHEET_DAILY_ID }}" >> $GITHUB_ENV
+
+      - name: Run Fillrate Script
+        run: python WaterfallBot/PlacementFillRate/fillrate.py
+
+      - name: Run Waterfall Script
+        run: python WaterfallBot/Waterfall/waterfall.py
+
+      - name: Run Duplicate Script
+        run: python WaterfallBot/duplicate.py
+
+      - name: Run Dialy Rev Script
+        run: python Daily-Rev/dailyrev.py
+
+      # Add Slack Message Step
+      - name: Send Slack Message
+        run: python3 Summary/slack_message.py
